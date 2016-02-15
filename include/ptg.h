@@ -1,65 +1,58 @@
-#ifndef PTG
-#define PTG
+#ifndef LIBPTG_H
+#define LIBPTG_H
 
-#include "cPTG.h"
+#include <iostream>
+#include <fstream>
+#include <cmath>
+#include <vector>
+#include <algorithm>
+#include <stdint.h>
 
-extern "C" char PTG_FILETYPETAG[];
-extern "C" long PTG_MAGICNUMBER;
-extern "C" int  PTG_PROP_XYZFLOAT;
-extern "C" int  PTG_PROP_XYZDOUBLE;
-extern "C" int  PTG_PROP_INTENSITY;
-extern "C" int  PTG_PROP_RGBVALUE;
-
-typedef  void (*TPTG_echo) (char *str,...);
-
-typedef int TPTG_handle;
-
-struct _PTG_point
+class PTGException
 {
-  double x[3];             // cartesian 3D coordinates   8 byte  [-1000.0000,1000.0000]  24 byte
-  float  I;                // intensity                  4 byte  [0.0,1.0]                4 byte
-  unsigned char  rgb[3];   // RGB-color                  1 byte  [0,255]                  3 byte
-};
-typedef struct _PTG_point TPTG_point;
-
-struct _PTG_metadata_mandatory
-{
-  long   version;
-  long   cols;
-  long   rows;
-  long   properties;
-  double tmatrix[4*4];
+private:
+    std::string m_message;
+public:
+    PTGException(std::string msg) {m_message = msg;}
+    ~PTGException() {}
+    std::string getMessage() {return m_message;}
 };
 
-typedef struct _PTG_metadata_mandatory TPTG_metadata_mandatory;
+struct point {
+    double xyz[3];
+    float i;
+    unsigned char rgb[3];
+};
 
+class libPTG
+{
+private:
+    const uint32_t MAGIC;
 
+    char header[4];
+    char *key, *value;
+    bool read;
+    uint32_t magic;
+    uint32_t cols;
+    uint32_t rows;
+    uint32_t rows_total;
+    uint32_t version;
+    uint32_t total_pts;
+    double azim_min,azim_max,elev_min,elev_max,transform[16];
+    uint32_t properties;
+    std::vector<point> points;
+    std::ifstream file;
+    bool read_string(std::ifstream *f, char **str);
+    //flags config
+    bool is_float;
+    bool is_intens;
+    bool is_rgb;
+public:
+    libPTG(std::string fileName);
+    ~libPTG();
+    void readPoints();
+    uint32_t getPointsCount();
+    point getPoint(int i);
+};
 
-extern "C" char* PTG__About(char *pstr);
-
-
-extern "C" void PTG__nogeoreference(double *p);
-extern "C" void PTG__copygeoreference(double *p,double *q);
-
-extern "C" void PTG__Init(
-                       void (*warnings) (char *str,...),
-                       void (*errors)   (char *str,...),
-                       int   debuglevel,
-                       char *creator=NULL
-                     );
-
-extern "C" void PTG__Exit(void);
-
-
-extern "C" TPTG_handle PTG__Create(char *fname,TPTG_metadata_mandatory *mdata);
-extern "C" void PTG__AddPoint(TPTG_handle handle,TPTG_point *point);
-
-extern "C" TPTG_handle PTG__Open(char *fname,TPTG_metadata_mandatory *mdata);
-extern "C" bool PTG__GetPoint(TPTG_handle handle,TPTG_point *point);
-extern "C" bool PTG__GetPointColRow(TPTG_handle handle,int col, int row, TPTG_point *point);
-
-extern "C" void PTG__Close(TPTG_handle handle);
-extern "C" void PTG__Local2World(TPTG_handle handle,TPTG_point *point,double *X);
-
-#endif // PTG
-
+#endif // LIBPTG_H
